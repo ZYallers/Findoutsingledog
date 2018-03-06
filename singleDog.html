@@ -1,0 +1,168 @@
+<!DOCTYPE HTML>
+<html>
+<head>
+	<meta charset="utf-8" />
+	<!-- <meta name="author" content="barret lee" />
+	<meta name="email" content="barret.china@gmail.com" /> -->
+  <title>DEMO</title>
+  <script src="js/phaser.js"></script>
+  <script src="js/jquery.min.js"></script>
+  <style>
+		#container{
+			width:100%;
+			height:100%;
+		}
+    #shade{
+      position: absolute;
+      top:0;
+      left:0;
+      font-size: 40px;
+      width: 100%;
+      height:100px;
+      overflow: hidden;
+      text-align: center;
+    }
+    #shade .shadow{
+      position: absolute;
+      top:0;left:0;
+      width:100%;
+      height: 100%;
+      background: #fff;
+      opacity: .5;
+
+    }
+    #shade .clock{
+      position: absolute;
+      top:-25px;right:0;
+      width:50%;
+      height: 100%;
+
+    }
+    #shade .bone{
+      position: absolute;
+      top:-25px;left:0;
+      width:50%;
+      height: 100%;
+    }
+  </style>
+</head>
+<body>
+  <div id="container"></div>
+  <div id="shade">
+    <p class="shadow"></p>
+    <p class="bone">喂了狗骨头:<span>0</span></p>
+    <p class="clock">倒计时：<span>60</span></p>
+  </div>
+	
+	<script>
+
+    var lientW = document.documentElement.clientWidth;
+    var lientH = document.documentElement.clientHeight;
+    var imgWidth = 150;//初始化每张图的宽度
+    var imgHeight = 140;//初始化每张图的高度
+    var imgWidthSetTo = .5;
+    var imgHeightSetTo = .5;
+    var rand = [0,1,2,3,4,5,6,7,8,9,10,11,12,13,14,15];//为了随机取图片的key名而用
+    var countH = Math.floor(lientH/imgHeight)-2;//计算总共画多少行
+    var countW = Math.floor(lientW/imgWidth)-1;//计算每行画多少图
+    var dog = null,PEPLE = null;
+    var moveLeft = 0,moveUp = 0;
+    var PassTimes = 0;//为了更新下一个场景命名和计算关卡而用
+    var times = 60;//倒计时
+    var timer = null;
+    var text = '';
+    var circle = 250;//dog被选中后画的外圆圈的半径
+    var positionX = 0,positionY = 0;//dog的横/纵坐标
+		$('#container').css('height',lientH+'px')//设置容器的高度为100%
+		let renderer = Phaser.CANVAS;//要使用的渲染器：phaser.auto将自动检测，phaser.webgl，phaser.canvas或phaser.headless（不提供）。
+		let parent = 'container';//游戏的容器，可以是一个dom元素或id
+    var game = new Phaser.Game(750,1120,renderer,parent);
+    
+    var loadState = function(){
+      this.init = function(){
+        game.scale.scaleMode = Phaser.ScaleManager.EXACT_FIT;//缩放到父元素的大小
+      }
+      this.preload = function(){
+        for(var i=1;i<rand.length;i++){
+          game.load.image('Bubble'+i,'images/image'+i+'.png');
+        }
+        game.load.spritesheet('dog','images/man.png',266,360);//dog必须用精灵，因为有点击事件和被选中后的眨眼动画
+      }
+      this.create = function(){
+        game.stage.setBackgroundColor(16777215);//设置画布为白色 ，必须为16进制
+        game.world.setBounds(0, 0, lientW, lientH) //设置世界的边界大小
+        var nRow = mathRand(1,countH/2);//取单身狗随机出现的横坐标
+        var nceil = mathRand(1,countW-4);//取单身狗随机出现的纵坐标
+        
+        var totalWidth = 0;
+        for(var i=1;i<countH;i++){
+          for(var j=0;j<countW;j++){
+            moveLeft = Math.random()>.5 ? -mathRand(0,30):mathRand(0,30);
+            moveUp = Math.random()>.5 ? -mathRand(0,30):mathRand(0,30);
+            if(nRow == i&& nceil == j){
+              positionX = j*imgWidth+moveLeft;
+              positionY = i*imgHeight+moveUp;
+              dog = game.add.sprite(positionX,positionY,'dog');
+              dog.scale.setTo(imgWidthSetTo*1.1,imgHeightSetTo*1.1);
+              dog.inputEnabled = true;
+              var evenets = dog.events;
+              evenets.onInputDown.add(otherDo,this);
+            }else{
+              PEPLE = game.add.image(j*imgWidth+moveLeft,i*imgHeight+moveUp, 'Bubble'+(rand[mathRand(0,15)]));
+              PEPLE.scale.setTo(imgWidthSetTo,imgHeightSetTo);
+            } 
+          } 
+        }
+      }
+      this.update= function(){
+        
+      }
+    }
+    game.state.add('boot',loadState);
+		
+		// 启动场景
+    game.state.start('boot');//同一时间只能有一个场景启动
+
+
+    function mathRand(min,max){//在一定范围内取随机整数
+      var newRand = parseInt(Math.random()*(max-min+1)+min);
+      return newRand;
+    }
+
+    function otherDo(){ //当dog被选中之后的操作
+      PassTimes++;
+      $('#shade .bone span').html(PassTimes);
+      var inputHander = dog.input;
+      inputHander.bringToTop=true;//这两步是为了让dog显示在最顶层
+      dog.animations.add('animationZ',[0,1,0]);//添加动画
+      dog.animations.play('animationZ',20,true);//启动动画
+      var graphics = game.add.graphics(0,0);
+      graphics.lineStyle(5,0xff0000);
+      graphics.drawCircle(positionX+circle/4,positionY+circle/3,circle);//以上三步为了画圈
+      setTimeout(()=>{
+        circle*=.95;
+        var newState = 'boot'+ PassTimes;
+        imgWidthSetTo *= .95;
+        imgHeightSetTo *= .95;
+        imgWidth *= .95;
+        imgHeight *= .95;
+        countH = Math.floor(lientH/imgHeight)-2;
+        countW = Math.floor(lientW/imgWidth)-1;
+        game.state.add(newState,loadState);//增加新的场景
+        game.state.start(newState)//启动新的场景
+
+      },500) 
+    }
+    timer = setInterval(()=>{
+      times--;
+      $('#shade .clock span').html(times);
+      if(times==0){
+        game.paused = true;
+        text = '哇哦，时间到了！';
+        alert(text)
+        clearInterval(timer);
+        timer = null;
+      }
+    },1000)
+  </script>
+</body>
